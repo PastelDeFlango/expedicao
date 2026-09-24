@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expedição Control</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<section id="loginScreen" class="login-page">
+  <div class="login-hero">
+    <div class="hero-glow"></div>
+    <div class="login-hero-inner">
+      <div class="logo">↗</div>
+      <h1>Controle de<br>expedição</h1>
+      <p>Montagem de carga, docas e tempos operacionais por turno, com supervisão e auditoria.</p>
+      <ul class="hero-points">
+        <li>Três turnos com acesso separado</li>
+        <li>Fluxo de 8 etapas com trava de ordem</li>
+        <li>Passagem de turno e ocorrências</li>
+      </ul>
+    </div>
+  </div>
+  <div class="login-side">
+    <form id="loginForm" class="login-card">
+      <h2>Bem-vindo de volta</h2>
+      <p>Acesse com o usuário vinculado ao seu turno.</p>
+      <label>Usuário<input id="loginUser" autocomplete="username" required></label>
+      <label>Senha<input id="loginPass" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary block" type="submit">Entrar no sistema</button>
+      <div id="loginError" class="error"></div>
+    </form>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">↗</div>
+      <div class="brand-text"><b>Expedição Control</b><small>Servidor central</small></div>
+    </div>
+    <nav>
+      <button class="nav active" data-page="dashboard">Painel</button>
+      <button class="nav" data-page="operation">Operação</button>
+      <button class="nav" data-page="handover">Passagem</button>
+      <button class="nav manager-only" data-page="team">Equipe</button>
+      <button class="nav manager-only" data-page="closure">Fechamento</button>
+      <button class="nav broad-only" data-page="audit">Auditoria</button>
+      <button class="nav broad-only" data-page="backup">Backup</button>
+    </nav>
+    <div class="session">
+      <div class="who">
+        <span class="avatar" id="avatar"></span>
+        <span class="who-text"><b id="sessionName"></b><small id="sessionRole"></small></span>
+      </div>
+      <button id="changePassword" class="btn ghost">Senha</button>
+      <button id="logout" class="btn ghost">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="page-dashboard" class="page active">
+      <div class="heading">
+        <div><h2 id="pageTitle">Painel operacional</h2><p id="periodText"></p></div>
+        <div class="filters">
+          <select id="monthFilter" aria-label="Mês"></select>
+          <select id="yearFilter" aria-label="Ano"></select>
+          <select id="shiftFilter" aria-label="Turno"></select>
+        </div>
+      </div>
+
+      <div id="shiftBanner" class="banner hidden"></div>
+
+      <div class="metrics">
+        <article class="metric" data-tone="blue">
+          <div class="metric-head"><span>Cargas no período</span><span class="metric-icon">▣</span></div>
+          <b id="mTotal">0</b><small id="mCompare">Sem base no mês anterior</small>
+        </article>
+        <article class="metric" data-tone="teal">
+          <div class="metric-head"><span>Liberadas</span><span class="metric-icon">✓</span></div>
+          <b id="mRelease">0%</b><small id="mReleased">0 veículos liberados</small>
+        </article>
+        <article class="metric" data-tone="indigo">
+          <div class="metric-head"><span>Tempo total médio</span><span class="metric-icon">◷</span></div>
+          <b id="mTotalTime">—</b><small>Da montagem à liberação</small>
+        </article>
+        <article class="metric" data-tone="cyan">
+          <div class="metric-head"><span>Montagem média</span><span class="metric-icon">⇄</span></div>
+          <b id="mAssembly">—</b><small>Separação da carga</small>
+        </article>
+        <article class="metric" data-tone="amber">
+          <div class="metric-head"><span>Em andamento</span><span class="metric-icon">◎</span></div>
+          <b id="mOpen">0</b><small id="mOpenDetail">Nenhuma carga em processo</small>
+        </article>
+      </div>
+
+      <div class="grid2">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Fluxo diário do mês</h3><p>Novas cargas e liberações por dia</p></div></div>
+          <div class="chart"><canvas id="dailyChart"></canvas></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><div><h3>Situação da operação</h3><p>Onde estão os veículos agora</p></div></div>
+          <div class="chart"><canvas id="statusChart"></canvas></div>
+        </article>
+      </div>
+
+      <div class="grid3">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Evolução anual</h3><p>Volume e tempo médio por mês</p></div></div>
+          <div class="chart small"><canvas id="annualChart"></canvas></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><div><h3>Tempo médio por etapa</h3><p>Em minutos</p></div></div>
+          <div class="chart small"><canvas id="stageChart"></canvas></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><div><h3>Metas do período</h3><p>Indicadores de desempenho</p></div></div>
+          <div id="efficiency" class="progress-list"></div>
+        </article>
+      </div>
+
+      <article class="panel shift-panel">
+        <div class="panel-head"><div><h3>Desempenho por turno</h3><p>Cargas expedidas e tempo médio de cada turno</p></div></div>
+        <div class="chart"><canvas id="shiftChart"></canvas></div>
+      </article>
+
+      <article class="panel broad-only">
+        <div class="panel-head"><div><h3>Ranking por operador</h3><p>Visão da supervisão</p></div></div>
+        <div id="ranking" class="ranking"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head"><div><h3>Ocorrências do período</h3><p>Motivos registrados e minutos perdidos</p></div></div>
+        <div id="occurrencesBox" class="ranking"></div>
+      </article>
+    </section>
+
+    <section id="page-operation" class="page">
+      <div class="heading">
+        <div><h2>Controle operacional</h2><p>Cada carga é vinculada ao operador e ao turno dele.</p></div>
+        <button id="newRecord" class="btn primary">+ Nova carga</button>
+      </div>
+      <article class="panel">
+        <div class="toolbar">
+          <div class="filters">
+            <input id="search" type="search" placeholder="Buscar carga, placa ou transportadora">
+            <select id="statusFilter"><option value="">Todas as situações</option></select>
+          </div>
+          <button id="exportCsv" class="btn">Exportar CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Carga</th><th>Placa</th><th>Operador</th><th>Turno</th>
+                <th>Situação</th><th>Progresso</th><th>Montagem</th>
+                <th>Espera</th><th>Carregamento</th><th>Total</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div id="empty" class="empty">Nenhuma carga encontrada.</div>
+        </div>
+      </article>
+    </section>
+
+    <section id="page-handover" class="page">
+      <div class="heading">
+        <div><h2>Passagem de turno</h2><p>O que fica pendente para o turno seguinte.</p></div>
+        <button id="newHandover" class="btn primary manager-only">+ Registrar passagem</button>
+      </div>
+      <article class="panel">
+        <div class="panel-head"><div><h3>Última passagem recebida</h3><p>Registro mais recente endereçado ao seu turno</p></div></div>
+        <div id="lastHandover" class="handover-box"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h3>Histórico</h3><p>Últimas passagens registradas</p></div></div>
+        <div id="handoverList" class="ranking"></div>
+      </article>
+    </section>
+
+    <section id="page-team" class="page manager-only">
+      <div class="heading">
+        <div><h2>Equipe</h2><p id="teamScope"></p></div>
+        <button id="newUser" class="btn primary">+ Novo funcionário</button>
+      </div>
+      <article class="panel">
+        <div class="table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr><th>Nome</th><th>Usuário</th><th>CPF</th><th>XID</th><th>Perfil</th><th>Turnos</th><th>Status</th><th>Ação</th></tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+
+    <section id="page-closure" class="page manager-only">
+      <div class="heading">
+        <div><h2>Fechamento de turno</h2><p>Resumo do turno no dia escolhido, pronto para imprimir.</p></div>
+        <div class="filters">
+          <select id="closureShift"></select>
+          <input id="closureDate" type="date">
+          <button id="closureLoad" class="btn">Carregar</button>
+          <button id="closurePrint" class="btn primary">Imprimir / PDF</button>
+        </div>
+      </div>
+      <article class="panel" id="closureSheet">
+        <div id="closureBody"></div>
+      </article>
+    </section>
+
+    <section id="page-audit" class="page broad-only">
+      <div class="heading">
+        <div><h2>Auditoria</h2><p>Quem fez o quê e quando.</p></div>
+      </div>
+      <article class="panel">
+        <div id="auditBody" class="ranking"></div>
+      </article>
+    </section>
+
+    <section id="page-backup" class="page broad-only">
+      <div class="heading">
+        <div><h2>Backup</h2><p>Copias do banco, com verificacao e restauracao.</p></div>
+        <button id="newBackup" class="btn primary">+ Gerar backup agora</button>
+      </div>
+      <article class="panel">
+        <div class="panel-head"><div><h3>Backups disponiveis</h3><p>Cada arquivo e verificado ao ser listado</p></div></div>
+        <div class="table-wrap">
+          <table class="users-table">
+            <thead><tr><th>Arquivo</th><th>Criado em</th><th>Tamanho</th><th>Acoes</th></tr></thead>
+            <tbody id="backupBody"></tbody>
+          </table>
+        </div>
+        <div id="backupEmpty" class="empty">Nenhum backup gerado ainda.</div>
+      </article>
+    </section>
+
+  </main>
+</div>
+
+<dialog id="recordModal">
+  <form id="recordForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Nova carga</h3><p>Ao salvar, a montagem da carga inicia com a hora atual.</p></div>
+      <button type="button" class="btn" data-close="recordModal">Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label>Nº da carga / pedido *<input id="load" required placeholder="CG-2450"></label>
+      <label>Turno<select id="loadShift"></select></label>
+      <label>Cliente<input id="client"></label>
+      <label>Destino<input id="destination"></label>
+      <label class="span2">Observações<textarea id="notes"></textarea></label>
+    </div>
+    <button class="btn primary block" type="submit">Iniciar montagem de carga</button>
+  </form>
+</dialog>
+
+<dialog id="stageModal" class="stage-dialog">
+  <div class="modal stage-modal">
+    <div class="modal-head stage-head">
+      <div class="stage-identity">
+        <div class="stage-mark" id="stageMark">MONT</div>
+        <div><h3 id="stageTitle">Carga</h3><p id="stageSubtitle"></p></div>
+      </div>
+      <div class="stage-head-right">
+        <span id="stageStatus" class="status"></span>
+        <button class="btn" data-close="stageModal">Fechar</button>
+      </div>
+    </div>
+    <div class="stage-progress">
+      <div class="stage-progress-bar"><span id="stageBar"></span></div>
+      <div class="stage-progress-text"><b id="stageProgressText">0 de 8 etapas</b><span id="stageProgressHint"></span></div>
+    </div>
+    <div class="stage-body">
+      <div class="timeline" id="timeline"></div>
+      <aside class="stage-side">
+        <div class="side-block">
+          <h4>Tempos</h4>
+          <div id="summary" class="summary"></div>
+        </div>
+        <div class="side-block">
+          <h4>Dados do veículo</h4>
+          <div id="detailsBody" class="details"></div>
+          <button class="btn small block" id="editDetails" type="button">Editar dados</button>
+        </div>
+        <div class="side-block">
+          <h4>Ocorrências</h4>
+          <div id="shipmentOccurrences" class="details"></div>
+          <button class="btn small block" id="newOccurrence" type="button">+ Registrar ocorrência</button>
+        </div>
+      </aside>
+    </div>
+    <div class="stage-foot">
+      <button class="btn primary big" id="advance" type="button">Registrar próxima etapa</button>
+      <button class="btn" id="undo" type="button">Desfazer última etapa</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="detailsModal">
+  <form id="detailsForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Dados do veículo</h3><p>Preencha quando a carga estiver pronta para receber o veículo.</p></div>
+      <button type="button" class="btn" data-close="detailsModal">Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label>Placa<input id="dPlate" maxlength="8" placeholder="ABC1D23"></label>
+      <label>Motorista<input id="dDriver"></label>
+      <label>Transportadora<input id="dCarrier"></label>
+      <label>Tipo de veículo<select id="dVehicleType"><option value="">Selecione</option><option>Carreta</option><option>Truck</option><option>Toco</option><option>VUC</option><option>Van</option><option>Bitrem</option><option>Outro</option></select></label>
+      <label>Doca<input id="dDock" placeholder="Doca 03"></label>
+      <label>Quantidade<input id="dQuantity" type="number" min="0"></label>
+      <label>Peso (kg)<input id="dWeight" type="number" min="0" step=".01"></label>
+      <label>Motivo de retenção<input id="dHoldReason" placeholder="Ex.: aguardando documento"></label>
+    </div>
+    <button class="btn primary block" type="submit">Salvar dados</button>
+  </form>
+</dialog>
+
+<dialog id="occurrenceModal">
+  <form id="occurrenceForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Registrar ocorrência</h3><p>Motivo da parada ou do atraso.</p></div>
+      <button type="button" class="btn" data-close="occurrenceModal">Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label>Motivo *<select id="occCategory" required>
+        <option value="">Selecione</option>
+        <option>Falta de carga</option>
+        <option>Veículo atrasado</option>
+        <option>Problema na doca</option>
+        <option>Documentação</option>
+        <option>Avaria</option>
+        <option>Falta de pessoal</option>
+        <option>Outro</option>
+      </select></label>
+      <label>Minutos perdidos<input id="occMinutes" type="number" min="0" value="0"></label>
+      <label class="span2">Detalhe<textarea id="occDetail"></textarea></label>
+    </div>
+    <button class="btn primary block" type="submit">Registrar</button>
+  </form>
+</dialog>
+
+<dialog id="userModal">
+  <form id="userForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Novo funcionário</h3><p>O cadastro fica vinculado aos turnos que você acessa.</p></div>
+      <button type="button" class="btn" data-close="userModal">Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label>Nome completo *<input id="userName" required></label>
+      <label>Usuário *<input id="userUsername" required autocomplete="off"></label>
+      <label>Senha *<input id="userPassword" type="password" minlength="8" required autocomplete="new-password"></label>
+      <label>CPF<input id="userCpf" maxlength="14" placeholder="000.000.000-00"></label>
+      <label>XID<input id="userXid"></label>
+      <label>Matrícula<input id="userRegistration"></label>
+      <label>Cargo<input id="userJobTitle" placeholder="Ex.: Separador"></label>
+      <label>Telefone<input id="userPhone"></label>
+      <label>Admissão<input id="userHiredAt" type="date"></label>
+      <label>Perfil<select id="userRole"><option value="operator">Operador</option><option value="manager">Gestor de turno</option><option value="supervisor">Supervisão</option><option value="admin">Administrador</option></select></label>
+      <div class="span2">
+        <label>Turnos</label>
+        <div id="userShifts" class="check-list"></div>
+      </div>
+    </div>
+    <button class="btn primary block" type="submit">Cadastrar funcionário</button>
+  </form>
+</dialog>
+
+<dialog id="handoverModal">
+  <form id="handoverForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Registrar passagem</h3><p>O que o turno seguinte precisa saber.</p></div>
+      <button type="button" class="btn" data-close="handoverModal">Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label>Do turno<select id="fromShift"></select></label>
+      <label>Para o turno<select id="toShift"></select></label>
+      <label class="span2">Resumo do turno<textarea id="hoSummary" placeholder="Cargas concluídas, movimento geral"></textarea></label>
+      <label class="span2">Pendências<textarea id="hoPending" placeholder="Veículo em doca, carga aguardando, ocorrências abertas"></textarea></label>
+    </div>
+    <button class="btn primary block" type="submit">Registrar passagem</button>
+  </form>
+</dialog>
+
+<dialog id="passwordModal">
+  <form id="passwordForm" class="modal">
+    <div class="modal-head">
+      <div><h3>Alterar senha</h3><p>Use pelo menos 8 caracteres.</p></div>
+      <button type="button" class="btn" data-close="passwordModal">Fechar</button>
+    </div>
+    <label>Senha atual<input id="currentPassword" type="password" required></label>
+    <label>Nova senha<input id="newPassword" type="password" minlength="8" required></label>
+    <button class="btn primary block" type="submit">Salvar nova senha</button>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

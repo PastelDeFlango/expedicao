@@ -1,0 +1,40 @@
+EXPEDICAO CONTROL - SERVIDOR
+============================
+
+COMO INICIAR
+------------
+1. npm install
+2. copy .env.example .env
+3. npm start
+
+Acesse: http://localhost:3000
+
+IMPORTANTE
+----------
+Extraia em pasta SEM parenteses no caminho. Certo: C:\expedicao
+Use Node.js 20 LTS.
+
+TESTE DA SINTAXE
+----------------
+node --check src/server.js
+node --check src/db.js
+
+ACESSOS INICIAIS
+----------------
+admin / Admin@123       (Supervisao)
+operador1 / Turno1@123  (Turno 1)
+operador2 / Turno2@123  (Turno 2)
+operador3 / Turno3@123  (Turno 3)
+
+ETAPAS DO FLUXO
+---------------
+1. Inicio da montagem de carga
+2. Fim da montagem de carga
+3. Chegada na portaria
+4. Veiculo docado
+5. Inicio do carregamento
+6. Fim do carregamento
+7. Saida da doca
+8. Liberacao do veiculo
+
+DADOS DE EXEMPLO: node tools/seed-demo.js 60
